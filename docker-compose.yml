@@ -19,7 +19,10 @@ services :
     ports : 
       - "4002"
     networks :
-      - proyectos-app  
+      - proyectos-app
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - PORT=4002
 
   balanceador :
     container_name : balanceador
