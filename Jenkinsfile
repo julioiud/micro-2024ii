@@ -1,33 +1,47 @@
 pipeline {
-
     agent any
 
     stages {
-        stage('Clonación de repositorio') {
+        stage('Clonar el Repositorio'){
             steps {
-                // clono el repo
+                git branch: 'main', credentialsId: 'git-jenkins', url: 'https://github.com/julioiud/node-jenkins.git'
             }
         }
-
-        // opcional
-        stage('Construcción de imagen docker') {
+        stage('Construir imagen de Docker'){
             steps {
                 script {
-                    // comando docker para hacer un build
+                    withCredentials([
+                        string(credentialsId: 'MONGO_URI', variable: 'MONGO_URI')
+                    ]) {
+                        docker.build('proyectos-backend-micro:v1', '--build-arg MONGO_URI=${MONGO_URI} .')
+                    }
                 }
             }
         }
-
-        stage('Despliegue containers docker') {
+        stage('Desplegar contenedores Docker'){
             steps {
-                // docker compose up -d
+                script {
+                    withCredentials([
+                            string(credentialsId: 'MONGO_URI', variable: 'MONGO_URI')
+                    ]) {
+                        sh """
+                            sed 's|\\${MONGO_URI}|${MONGO_URI}|g' docker-compose.yml > docker-compose-update.yml
+                            docker-compose -f docker-compose-update.yml up -d
+                        """
+                    }
+                }
             }
         }
     }
 
     post {
         always {
-            // envíe un email de confirmación
+            emailext (
+                subject: "Estado del build: ${currentBuild.currentResult}",
+                body: "Se ha completado el build. Puede detallar en: ${env.BUILD_URL}",
+                to: "juliomzarate5@gmail.com",
+                from: "jenkins@iudigital.edu.co"
+            )
         }
     }
 }
